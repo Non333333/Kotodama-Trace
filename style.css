@@ -47,35 +47,34 @@ body {
   filter: drop-shadow(0 0 10px rgba(124, 240, 255, 0.8));
   transition: transform 0.2s, filter 0.3s;
 }
-
 .npc:active { transform: translate(-50%, -50%) scale(0.9); }
 .npc img { width: 100%; height: 100%; object-fit: contain; }
 
-/* ゲート (クリア時出現) */
-.gate {
+/* ✅ゲート: 親(fade/scale) + 子(spin) で transform 競合を解消 */
+.gate-wrap {
   position: absolute;
   width: 120px; height: 120px;
   transform: translate(-50%, -50%);
-  cursor: pointer;
   z-index: 5;
   filter: drop-shadow(0 0 15px cyan);
+  cursor: pointer;
+}
+.gate-wrap.fade-in {
+  animation: gateFadeIn 1.8s ease-out forwards;
+}
+.gate {
+  width: 100%; height: 100%;
+  display: block;
   animation: spin 10s linear infinite;
 }
 
-/* ★修正: 出現アニメーション */
-.gate.fade-in {
-  animation: spin 10s linear infinite, fadeIn 2s ease-out forwards;
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
-
-@keyframes spin { 
-  0% { transform: translate(-50%, -50%) rotate(0deg); } 
-  100% { transform: translate(-50%, -50%) rotate(360deg); } 
-}
-
-@keyframes fadeIn {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5) rotate(0deg); }
-  100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); } 
-  /* 注意: rotateの値はspinと競合するため、spinの親要素を作るか、単純なopacityフェードにするのが無難ですが、今回は単純化のためこのままにします */
+@keyframes gateFadeIn {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
 /* Title & Menu */
@@ -115,7 +114,7 @@ body {
   z-index: var(--z-talk-win);
   padding: 24px 40px;
   background: url("assets/ui_window.png") no-repeat center center;
-  background-size: 100% 100%; /* 枠の歪みが気になる場合は border-image を検討してください */
+  background-size: 100% 100%;
   color: #fff;
   text-shadow: 1px 1px 2px #000;
 }

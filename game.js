@@ -5,6 +5,7 @@
   // --- Global State ---
   const State = {
     config: null,
+    saveKey: null, // ★追加: world.json の gameId をここに保持して統一
     npcs: [],
     items: [],
     saveData: { talkCounts: {}, unlockedItems: {} },
@@ -12,7 +13,8 @@
       isTalking: false,
       talkQueue: [],
       currentNpc: null,
-      typingTimer: null
+      typingTimer: null,
+      currentFullText: ""
     }
   };
 
@@ -24,7 +26,10 @@
       field: document.getElementById("scene-field"),
       collection: document.getElementById("scene-collection")
     },
-    field: { area: document.getElementById("field-area"), hudCount: document.getElementById("hud-count") },
+    field: {
+      area: document.getElementById("field-area"),
+      hudCount: document.getElementById("hud-count")
+    },
     talk: {
       overlay: document.getElementById("overlay-talk"),
       name: document.getElementById("talk-name"),
@@ -34,6 +39,20 @@
     collection: { list: document.getElementById("collection-list") }
   };
 
+  // --- Helpers ---
+  function safeJsonParse(str, fallback) {
+    try {
+      return JSON.parse(str);
+    } catch {
+      return fallback;
+    }
+  }
+
+  function saveNow() {
+    if (!State.saveKey) return;
+    localStorage.setItem(State.saveKey, JSON.stringify(State.saveData));
+  }
+
   // --- Data Loader ---
   async function loadAllData() {
     try {
@@ -42,22 +61,32 @@
         fetch("npcs.json"),
         fetch("kotodama.json")
       ]);
+
+      // ★改善: 404などを即検知して原因が分かるようにする
+      if (!worldRes.ok) throw new Error(`world.json load failed: ${worldRes.status}`);
+      if (!npcRes.ok) throw new Error(`npcs.json load failed: ${npcRes.status}`);
+      if (!kotoRes.ok) throw new Error(`kotodama.json load failed: ${kotoRes.status}`);
+
       const worldData = await worldRes.json();
       const npcData = await npcRes.json();
       const kotoData = await kotoRes.json();
 
       State.config = worldData.config;
+      State.saveKey = worldData.gameId; // ★統一の核
       State.npcs = npcData.npcs;
       State.items = kotoData.kotodama;
 
-      // ★【修正点】セーブデータ読み込みの安全化 (ここがバグの原因でした)
-      const rawSave = localStorage.getItem(worldData.gameId);
+      // ★セーブ読み込み（壊れてても落ちない）
+      const rawSave = localStorage.getItem(State.saveKey);
       if (rawSave) {
-        try {
-          State.saveData = { ...State.saveData, ...JSON.parse(rawSave) };
-        } catch (parseError) {
-          console.warn("Save data corrupted. Resetting to default.", parseError);
-          // データが壊れていた場合は読み込まず、初期値でスタートします
+        const parsed = safeJsonParse(rawSave, null);
+        if (parsed && typeof parsed === "object") {
+          State.saveData = { ...State.saveData, ...parsed };
+          // 中身が欠けてても最低限の形に戻す
+          State.saveData.talkCounts = State.saveData.talkCounts || {};
+          State.saveData.unlockedItems = State.saveData.unlockedItems || {};
+        } else {
+          console.warn("Save data corrupted. Resetting to default.");
         }
       }
 
@@ -81,7 +110,6 @@
       }
       window.speechSynthesis.speak(u);
     },
-    // 将来的なSE再生用プレースホルダー
     playTypeSound() {
       // const audio = new Audio("assets/se_type.mp3");
       // audio.volume = 0.2;
@@ -94,12 +122,12 @@
     async change(sceneName, callback) {
       UI.fade.classList.add("is-active");
       await new Promise(r => setTimeout(r, 400));
-      
+
       Object.values(UI.scenes).forEach(el => el.classList.remove("is-active"));
       if (UI.scenes[sceneName]) UI.scenes[sceneName].classList.add("is-active");
-      
+
       if (callback) callback();
-      
+
       await new Promise(r => setTimeout(r, 200));
       UI.fade.classList.remove("is-active");
     }
@@ -108,6 +136,7 @@
   const Field = {
     render() {
       UI.field.area.innerHTML = "";
+
       State.npcs.forEach(npc => {
         const el = document.createElement("div");
         el.className = "npc";
@@ -115,45 +144,61 @@
         el.style.top = `${npc.position.y}%`;
         el.dataset.id = npc.id;
 
-        const img = document.createElement("img");
-        img.src = npc.imageSd || ""; 
-        el.appendChild(img);
+        // ★改善: imageSd が無いと壊れ画像になるので、無ければimgを作らない
+        if (npc.imageSd) {
+          const img = document.createElement("img");
+          img.src = npc.imageSd;
+          img.alt = npc.name || "";
+          el.appendChild(img);
+        }
 
         const count = State.saveData.talkCounts[npc.id] || 0;
         if (count >= State.config.clearRounds) {
           el.style.filter = "grayscale(100%) opacity(0.6)";
         }
+
         UI.field.area.appendChild(el);
       });
+
       this.checkAndRenderGate();
       this.updateHUD();
     },
 
     checkAndRenderGate() {
-      const allTalked = State.npcs.every(n => (State.saveData.talkCounts[n.id] || 0) >= State.config.clearRounds);
-      const allItems = State.items.length === Object.keys(State.saveData.unlockedItems).length;
+      const allTalked = State.npcs.every(
+        n => (State.saveData.talkCounts[n.id] || 0) >= State.config.clearRounds
+      );
+
+      // ★修正: unlockedItems の「数」ではなく「必要な全IDが true か」で判定
+      const allItems = State.items.every(item => !!State.saveData.unlockedItems[item.id]);
 
       if (allTalked && allItems) {
+        // ★修正: fade(親) と spin(子) を分離して transform 競合を消す
+        const wrap = document.createElement("div");
+        wrap.className = "gate-wrap fade-in";
+        wrap.style.left = "85%";
+        wrap.style.top = "80%";
+
         const gate = document.createElement("img");
         gate.src = "assets/obj_gate.png";
-        // ★【改善点】出現アニメーション用のクラスを追加
-        gate.className = "gate fade-in";
-        
-        gate.style.left = "85%";
-        gate.style.top = "80%";
-        
+        gate.className = "gate";
+
         gate.onclick = () => {
-          if(confirm("全ての言霊が集まりました。\nこの世界から脱出しますか？")) {
+          if (confirm("全ての言霊が集まりました。\nこの世界から脱出しますか？")) {
             alert("Thank you for playing.");
             SceneManager.change("title");
           }
         };
-        UI.field.area.appendChild(gate);
+
+        wrap.appendChild(gate);
+        UI.field.area.appendChild(wrap);
       }
     },
 
     updateHUD() {
-      const current = Object.keys(State.saveData.unlockedItems).length;
+      const current = Object.keys(State.saveData.unlockedItems).filter(
+        id => !!State.saveData.unlockedItems[id]
+      ).length;
       UI.field.hudCount.textContent = `${current} / ${State.items.length}`;
     },
 
@@ -178,10 +223,10 @@
 
       UI.talk.name.textContent = npc.name;
       UI.talk.text.textContent = "";
-      
+
       this.updateImage("base");
       UI.talk.overlay.classList.add("is-active");
-      
+
       this.next();
     },
 
@@ -191,11 +236,13 @@
         UI.talk.charImg.style.display = "none";
         return;
       }
-      
+
       const src = npc.images[faceType] || npc.images["base"];
       if (src) {
         UI.talk.charImg.src = src;
         UI.talk.charImg.style.display = "block";
+      } else {
+        UI.talk.charImg.style.display = "none";
       }
     },
 
@@ -215,10 +262,8 @@
       if (typeof item === "string") {
         text = item;
       } else {
-        text = item.text;
-        if (item.face) {
-          this.updateImage(item.face);
-        }
+        text = item.text || "";
+        if (item.face) this.updateImage(item.face);
       }
 
       this.typeText(text);
@@ -229,12 +274,11 @@
       let i = 0;
       UI.talk.text.textContent = "";
       State.runtime.currentFullText = text;
-      
+
       const speed = State.config.uiTypeSpeed || 30;
       State.runtime.typingTimer = setInterval(() => {
         UI.talk.text.textContent += text.charAt(i);
-        
-        // ★将来的にここでSEを鳴らす
+
         // if (i % 3 === 0) AudioSys.playTypeSound();
 
         i++;
@@ -257,12 +301,16 @@
       const npc = State.runtime.currentNpc;
       const count = State.saveData.talkCounts[npc.id] || 0;
 
+      // 2回目会話終了時に言霊付与（元コードの挙動を維持）
       if (count === 1 && npc.kotodamaId && !State.saveData.unlockedItems[npc.kotodamaId]) {
         State.saveData.unlockedItems[npc.kotodamaId] = true;
       }
 
       State.saveData.talkCounts[npc.id] = Math.min(count + 1, 99);
-      localStorage.setItem("kotodama-trace-v3", JSON.stringify(State.saveData));
+
+      // ★修正: セーブキー直書きを廃止
+      saveNow();
+
       Field.render();
     }
   };
@@ -287,20 +335,30 @@
     const success = await loadAllData();
     if (!success) return;
 
-    document.getElementById("btn-start").addEventListener("click", () => SceneManager.change("field", () => Field.render()));
-    document.getElementById("btn-kotodama-list").addEventListener("click", () => SceneManager.change("collection", () => Collection.render()));
-    document.getElementById("btn-back-title").addEventListener("click", () => SceneManager.change("title"));
+    document.getElementById("btn-start").addEventListener("click", () =>
+      SceneManager.change("field", () => Field.render())
+    );
+    document.getElementById("btn-kotodama-list").addEventListener("click", () =>
+      SceneManager.change("collection", () => Collection.render())
+    );
+    document.getElementById("btn-back-title").addEventListener("click", () =>
+      SceneManager.change("title")
+    );
+
     document.getElementById("btn-reset").addEventListener("click", () => {
-      if(confirm("データを全て削除しますか？")) {
-        localStorage.removeItem("kotodama-trace-v3");
+      if (confirm("データを全て削除しますか？")) {
+        if (State.saveKey) localStorage.removeItem(State.saveKey); // ★統一
         location.reload();
       }
     });
-    UI.field.area.addEventListener("click", (e) => {
+
+    UI.field.area.addEventListener("click", e => {
       const npcEl = e.target.closest(".npc");
       if (npcEl) Field.onNpcClick(npcEl.dataset.id);
     });
+
     UI.talk.overlay.addEventListener("click", () => TalkSystem.next());
+
     SceneManager.change("title");
   }
 

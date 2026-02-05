@@ -1,310 +1,311 @@
-/* assets/css/style.css */
-
-/* ===== 基本色 ===== */
-:root{
-  --bg:#0b0f1a;
-  --fg:#e9f0ff;
-  --muted:rgba(233,240,255,0.72);
-  --glass:rgba(255,255,255,0.06);
-  --line:rgba(255,255,255,0.12);
-  --accent:#7cf0ff;
-  --danger:#ff4d6d;
-
-  --shadow:0 14px 44px rgba(0,0,0,0.38);
-  --radius:16px;
+/* style.css */
+:root {
+  /* Colors */
+  --c-bg: #0b0f1a;
+  --c-text: #e9f0ff;
+  --c-text-muted: rgba(233, 240, 255, 0.6);
+  --c-accent: #7cf0ff;
+  --c-accent-dim: rgba(124, 240, 255, 0.15);
+  --c-glass: rgba(255, 255, 255, 0.08);
+  --c-border: rgba(255, 255, 255, 0.12);
+  
+  /* Dimensions */
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  
+  /* Layers (Z-Index) */
+  --z-bg: 0;
+  --z-field: 10;
+  --z-ui: 20;
+  --z-overlay: 100;
+  --z-fade: 9999;
 }
 
-/* ===== 全体 ===== */
-*{ box-sizing:border-box; }
-html,body{
-  height:100%;
-  margin:0;
-  background:var(--bg);
-  color:var(--fg);
-  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
-}
-body{ overflow:hidden; }
+/* Reset & Base */
+*, *::before, *::after { box-sizing: border-box; }
 
-#app{
-  position:fixed;
-  inset:0;
-  overflow:hidden;
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: var(--c-bg);
+  color: var(--c-text);
+  font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif;
+  overflow: hidden; /* アプリライクな挙動のためスクロール禁止 */
+  user-select: none; /* テキスト選択禁止 */
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* ===== シーン切り替え ===== */
-.scene{
-  position:absolute;
-  inset:0;
-  display:none;
-  padding:24px;
+button {
+  font-family: inherit;
+  cursor: pointer;
+  touch-action: manipulation; /* スマホでの遅延対策 */
 }
 
-.scene.is-active{ display:block; }
-
-.overlay{
-  position:absolute;
-  inset:0;
-  display:none;
-  align-items:flex-end;
-  justify-content:center;
-  padding:16px;
-  pointer-events:none; /* 会話中のクリック制御はJS側で切り替える */
-}
-.overlay.is-active{
-  display:flex;
+/* App Container */
+#app {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
 }
 
-/* ===== ホワイトアウト ===== */
-#fade{
-  position:absolute;
-  inset:0;
-  background:#fff;
-  opacity:0;
-  pointer-events:none;
-  transition: opacity 380ms ease;
-  z-index: 9999; /* 【修正】最前面に表示して演出を有効化 */
-}
-#fade.is-on{ opacity:1; }
-
-/* ===== タイトル ===== */
-#scene-title{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:18px;
-  text-align:center;
+/* Scenes (Common) */
+.scene {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: var(--z-ui);
+  display: flex;
+  flex-direction: column;
 }
 
-#game-title{
-  margin:0;
-  font-size:28px;
-  letter-spacing:0.06em;
-  text-shadow: 0 10px 40px rgba(0,0,0,0.55);
+.scene.is-active {
+  opacity: 1;
+  pointer-events: auto;
 }
 
-.menu{
-  display:flex;
-  gap:12px;
-  flex-wrap:wrap;
-  justify-content:center;
+/* Fade Layer */
+#fade-layer {
+  position: fixed;
+  inset: 0;
+  background: white;
+  opacity: 0;
+  pointer-events: none;
+  z-index: var(--z-fade);
+  transition: opacity 0.4s ease;
+}
+#fade-layer.is-active { opacity: 1; }
+
+/* Scene: Title */
+#scene-title {
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 30%, #1a2236 0%, var(--c-bg) 70%);
 }
 
-/* ===== ボタン ===== */
-button{
-  appearance:none;
-  border:none;
-  cursor:pointer;
-
-  padding:12px 16px;
-  border-radius:14px;
-
-  color:var(--fg);
-  font-weight:800;
-  letter-spacing:0.02em;
-
-  background: linear-gradient(180deg, rgba(124,240,255,0.22), rgba(124,240,255,0.10));
-  border:1px solid rgba(124,240,255,0.35);
-  box-shadow: 0 10px 34px rgba(0,0,0,0.25);
+.title-container {
+  text-align: center;
+  margin-bottom: 48px;
 }
 
-button:active{ transform: translateY(1px); }
-button:focus{ outline: 2px solid rgba(124,240,255,0.35); outline-offset:2px; }
-
-/* ===== 探索フィールド ===== */
-#scene-field{ padding:0; }
-
-#field{
-  position:absolute;
-  inset:0;
-  background:
-    radial-gradient(1200px 700px at 50% 62%, rgba(124,240,255,0.09), transparent 58%),
-    radial-gradient(900px 540px at 20% 20%, rgba(255,77,109,0.06), transparent 55%),
-    linear-gradient(180deg, rgba(255,255,255,0.03), transparent 45%);
+#game-title {
+  font-size: 3rem;
+  margin: 0;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 20px rgba(124, 240, 255, 0.4);
 }
 
-/* “星屑”のような粒。重すぎない程度に。 */
-#field::before{
-  content:"";
-  position:absolute;
-  inset:-20px;
-  background-image:
-    radial-gradient(circle at 18% 22%, rgba(124,240,255,0.18) 0 1px, transparent 2px),
-    radial-gradient(circle at 62% 34%, rgba(233,240,255,0.10) 0 1px, transparent 2px),
-    radial-gradient(circle at 80% 70%, rgba(124,240,255,0.12) 0 1px, transparent 2px),
-    radial-gradient(circle at 36% 78%, rgba(233,240,255,0.08) 0 1px, transparent 2px);
-  opacity:0.38;
-  filter: blur(0.2px);
-  pointer-events:none;
+.game-subtitle {
+  color: var(--c-accent);
+  font-size: 1rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-top: 8px;
+  opacity: 0.7;
 }
 
-/* ===== HUD ===== */
-#hud{
-  position:absolute;
-  left:12px;
-  right:12px;
-  top:12px;
-
-  display:flex;
-  justify-content:flex-start;
-  gap:10px;
-
-  pointer-events:none;
-  font-variant-numeric: tabular-nums;
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 200px;
 }
 
-#hud > span{
-  background:var(--glass);
-  border:1px solid var(--line);
-  border-radius:999px;
-  padding:8px 12px;
-  font-weight:800;
-  font-size:14px;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(6px);
+/* Buttons */
+.btn {
+  appearance: none;
+  border: 1px solid var(--c-accent);
+  background: var(--c-accent-dim);
+  color: var(--c-accent);
+  padding: 14px;
+  border-radius: var(--radius-md);
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  transition: all 0.2s;
 }
 
-/* ===== NPC表示（JSで .npc を作って置く想定） ===== */
-.npc{
-  position:absolute;
+.btn:active { transform: scale(0.96); }
+.btn.secondary {
+  border-color: var(--c-border);
+  background: transparent;
+  color: var(--c-text-muted);
+}
+
+/* Scene: Field */
+#scene-field { z-index: var(--z-field); }
+
+#field-area {
+  position: absolute;
+  inset: 0;
+  /* 星空のような背景 */
+  background-image: 
+    radial-gradient(1px 1px at 20% 20%, white 1px, transparent 0),
+    radial-gradient(1px 1px at 80% 40%, white 1px, transparent 0),
+    radial-gradient(2px 2px at 50% 50%, rgba(255,255,255,0.5) 1px, transparent 0);
+  background-size: 500px 500px;
+}
+
+/* NPC (CSSで位置指定はJSで行うがスタイルはここ) */
+.npc {
+  position: absolute;
+  width: 40px; 
+  height: 40px;
   transform: translate(-50%, -50%);
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-
-  background: radial-gradient(circle at 30% 30%, rgba(233,240,255,0.95), rgba(124,240,255,0.18));
-  border: 1px solid rgba(124,240,255,0.55);
-  box-shadow: 0 10px 28px rgba(0,0,0,0.35);
-
-  /* 触れる対象なので pointer-events を許可 */
-  pointer-events:auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
 }
 
-.npc::after{
-  content: attr(data-name);
-  position:absolute;
-  left:50%;
-  top:-10px;
-  transform: translate(-50%, -100%);
+/* NPC Body (光る球体) */
+.npc::before {
+  content: "";
+  width: 16px; 
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--c-accent), 0 0 20px var(--c-accent);
+  transition: transform 0.3s;
+}
+.npc:active::before { transform: scale(0.8); }
 
-  padding:6px 10px;
-  border-radius:999px;
-
-  background: rgba(0,0,0,0.28);
-  border: 1px solid rgba(255,255,255,0.10);
-  color: rgba(233,240,255,0.92);
-
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing:0.02em;
-
-  white-space:nowrap;
-  backdrop-filter: blur(6px);
-  pointer-events:none;
+/* NPC Name */
+.npc-name {
+  margin-top: 8px;
+  font-size: 11px;
+  background: rgba(0,0,0,0.6);
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
 }
 
-.npc.is-cleared{
-  border-color: rgba(124,240,255,0.25);
-  opacity:0.78;
+.npc.cleared::before {
+  background: #555;
+  box-shadow: none;
+  opacity: 0.6;
 }
 
-/* ===== 会話ウィンドウ ===== */
-.talk-window{
-  width:min(760px, 96vw);
-  border-radius: var(--radius);
-  background: rgba(255,255,255,0.07);
-  border:1px solid rgba(255,255,255,0.14);
-  box-shadow: var(--shadow);
+/* HUD */
+#hud-area {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  pointer-events: none;
+}
+
+.hud-item {
+  display: inline-flex;
+  gap: 8px;
+  background: var(--c-glass);
+  padding: 8px 16px;
+  border-radius: 99px;
+  border: 1px solid var(--c-border);
   backdrop-filter: blur(8px);
-  padding:14px 14px 12px;
-  pointer-events:auto;
+  font-size: 14px;
+}
+.hud-label { color: var(--c-accent); font-weight: bold; }
+
+/* Scene: Collection */
+#scene-collection {
+  background: rgba(11, 15, 26, 0.95);
+  padding: 20px;
 }
 
-.talk-name{
-  font-weight:900;
-  letter-spacing:0.04em;
-  color: rgba(124,240,255,0.95);
-  margin-bottom:8px;
+.scene-header { text-align: center; margin-bottom: 20px; }
+.scene-header h2 { font-size: 1.2rem; color: var(--c-accent); }
+
+.scroll-view {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding-bottom: 20px;
 }
 
-.talk-text{
-  font-size:15px;
-  line-height:1.8;
-  color: rgba(233,240,255,0.95);
-  white-space:pre-wrap;
-  min-height: 3.6em; /* 2行分の間 */
+.card {
+  background: var(--c-glass);
+  border: 1px solid var(--c-border);
+  padding: 16px;
+  border-radius: var(--radius-md);
+}
+.card.locked { opacity: 0.4; }
+.card-title { color: var(--c-accent); font-weight: bold; margin-bottom: 8px; }
+.card-text { font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+
+.scene-footer {
+  padding-top: 16px;
+  text-align: center;
 }
 
-.talk-hint{
-  margin-top:10px;
-  font-size:12px;
-  color: rgba(233,240,255,0.62);
-  text-align:right;
-  letter-spacing:0.12em;
+/* Overlay: Talk */
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
 }
 
-/* ===== 言霊一覧 ===== */
-#scene-kotodama{
-  display:flex;
-  flex-direction:column;
-  gap:14px;
-  padding:18px;
+.overlay.is-active {
+  opacity: 1;
+  pointer-events: auto;
 }
 
-#scene-kotodama h2{
-  margin:6px 0 4px;
-  font-size:22px;
-  letter-spacing:0.04em;
+.talk-window {
+  width: 100%;
+  max-width: 600px;
+  background: rgba(20, 24, 35, 0.95);
+  border: 1px solid var(--c-accent);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  backdrop-filter: blur(10px);
 }
 
-#kotodama-list{
-  flex:1;
-  overflow:auto;
-  padding:6px 2px 2px;
-  display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap:12px;
+.talk-header {
+  margin-bottom: 12px;
+}
+#talk-name {
+  font-weight: bold;
+  color: var(--c-accent);
+  border-bottom: 2px solid var(--c-accent-dim);
+  padding-bottom: 4px;
 }
 
-.kotodama-card{
-  background: rgba(255,255,255,0.06);
-  border:1px solid rgba(255,255,255,0.12);
-  border-radius: var(--radius);
-  padding:14px 14px 12px;
-  box-shadow: 0 10px 34px rgba(0,0,0,0.22);
-  backdrop-filter: blur(6px);
+.talk-body {
+  min-height: 4.5em;
+  margin-bottom: 12px;
+}
+#talk-text {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.8;
 }
 
-.kotodama-title{
-  font-weight:900;
-  letter-spacing:0.04em;
-  color: rgba(124,240,255,0.95);
-  margin-bottom:8px;
+.talk-footer {
+  text-align: right;
+}
+.blink-text {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  animation: blink 1.5s infinite;
+  opacity: 0.7;
 }
 
-.kotodama-text{
-  font-size:13px;
-  line-height:1.75;
-  color: rgba(233,240,255,0.88);
-  white-space:pre-wrap;
-}
-
-.kotodama-card.is-locked .kotodama-title,
-.kotodama-card.is-locked .kotodama-text{
-  color: rgba(233,240,255,0.38);
-}
-
-/* ===== スクロール見た目（対応ブラウザのみ） ===== */
-#kotodama-list::-webkit-scrollbar{ width:10px; }
-#kotodama-list::-webkit-scrollbar-thumb{
-  background: rgba(124,240,255,0.18);
-  border: 2px solid rgba(11,15,26,0.85);
-  border-radius: 999px;
-}
-
-/* ===== 小さめ端末調整 ===== */
-@media (max-width: 420px){
-  #game-title{ font-size:24px; }
-  button{ min-width: 140px; }
-  .talk-text{ font-size:14px; }
+@keyframes blink {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
 }

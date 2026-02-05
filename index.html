@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0f1a">
+  <title>言霊巡り</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="app">
+    <div id="fade-layer" aria-hidden="true"></div>
+
+    <section id="scene-title" class="scene is-active">
+      <div class="title-container">
+        <h1 id="game-title">言霊巡り</h1>
+        <p class="game-subtitle">Trace of Words</p>
+      </div>
+      <nav class="menu">
+        <button id="btn-start" class="btn primary">始める</button>
+        <button id="btn-kotodama-list" class="btn secondary">言霊を見る</button>
+      </nav>
+    </section>
+
+    <section id="scene-field" class="scene">
+      <div id="field-area">
+        </div>
+      <div id="hud-area">
+        <div class="hud-item">
+          <span class="hud-label">収集</span>
+          <span id="hud-count">0 / 0</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="scene-collection" class="scene">
+      <header class="scene-header">
+        <h2>収集した言葉</h2>
+      </header>
+      <div id="collection-list" class="scroll-view">
+        </div>
+      <footer class="scene-footer">
+        <button id="btn-back-title" class="btn secondary">戻る</button>
+      </footer>
+    </section>
+
+    <div id="overlay-talk" class="overlay" aria-hidden="true">
+      <div class="talk-window">
+        <div class="talk-header">
+          <span id="talk-name">Name</span>
+        </div>
+        <div class="talk-body">
+          <p id="talk-text"></p>
+        </div>
+        <div class="talk-footer">
+          <span class="blink-text">TAP TO NEXT</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>

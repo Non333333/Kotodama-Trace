@@ -1,0 +1,8 @@
+{
+  "gameId": "kotodama-trace-v3",
+  "title": "言霊巡り",
+  "config": {
+    "clearRounds": 2,
+    "uiTypeSpeed": 40
+  }
+}
